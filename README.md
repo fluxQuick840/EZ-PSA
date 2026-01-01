@@ -1,2 +1,8 @@
 # EZ-PSA
 A quick, accessible, screenreader-friendly UI for interacting with Connectwise Manage
+## What Is This?
+Quite simply, I work for an msp that uses Connectwise Manage. Because Manage has a very inaccessible interface that appears to have been developed in about 2012 and not touched since, I used their API to get the data I needed and built my own basic html UI. It's what worked for me, and this is just something basic I hacked together. I'm no developer or anything. If there is interest, I'll keep at this. If you have something to contribute, go right ahead.
+## Setup
+This is a python flask app. Download this Repo, and replace the empty variables in manage.py with your public/private API keys and company name. Unfortunately, if you're relying totally on a screenreader, someone will have to get these for you. You'll also need a clientID, which you will be able to get from [here](https://developer.connectwise.com/Products/ConnectWise_PSA) after you register for a developer account.
+You can run manage.py to start the flask app. If you're only using this on your local machine, you probably won't need to protect it by making anyone use 365 to log in. You can comment out the loginRequired decorator before each route so it doesn't force you to. If you do want to host this publically, and you'd like to use AAD to login, create an app registration for EZ-PSA in Entra and generate a client secret to use. 
+Hopefully, that's all you should need to do, besides installing all the required libraries. I apoligize, I'm not familiar with common practice for distributing code or I would have a handy setup script ready. Again, I'm no developer. I just wanted to make this available if anyone wanted to use it either as is or to jump off from.
