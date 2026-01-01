@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Create New Ticket EZ-PSA</title>
+</head>
+<body>
+<h1>Create New Service Ticket</h1>
+<b>Enter the details of your new ticket below</b>
+<form id="ticketForm">
+<label>Board</label>
+<select name="board" id="boardSelect">
+    <option value="">Loading boards...</option>
+</select><br>
+<label>Title</label><input title="Title" name="title"><br>
+<label>Company</label><input type="text" list="companyList" id="companySelect" name="companySelect" autocomplete="off">
+<datalist id="companyList"></datalist><br>
+<label>Status</label>
+<select name="status">
+<option>New</option>
+<option>Waiting Client Response</option>
+<option>In Progress</option>
+<option>On Hold</option>
+<option>>Closed</option>
+<option>>Closed (NO EMAIL)</option>
+</select><br>
+<label>Description</label><textarea tile="Description" name="description"></textarea><br>
+<button type="button" onclick="submitTicket()">Submit</button>
+</form>
+<div id="formUpdates"></div>
+<script>
+// hide form until companies are loaded
+document.getElementById('ticketForm').style.display = 'none';
+
+// Get board from URL parameter
+const urlParams = new URLSearchParams(window.location.search);
+const preselectedBoard = urlParams.get('board');
+
+// Load boards
+fetch('/api/getBoards')
+.then(r => r.json())
+.then(boards => {
+    let boardSelect = document.getElementById('boardSelect');
+    boardSelect.innerHTML = ''; // Clear loading message
+    
+    boards.forEach(board => {
+        if (board.inactive) return; // Skip inactive boards
+        
+        let option = document.createElement('option');
+        option.value = board.name;
+        option.textContent = board.name;
+        
+        // Pre-select if board parameter matches
+        if (preselectedBoard && board.name === preselectedBoard) {
+            option.selected = true;
+        }
+        
+        boardSelect.appendChild(option);
+    });
+});
+
+// Load companies
+fetch('/api/newTicket')
+.then(r => r.json())
+.then(list => {
+    let s = document.getElementById('companyList');
+    list.forEach(c => {
+        let o = document.createElement('option');
+        o.value = c.name;
+        o.setAttribute('data-id', c.id);
+        s.appendChild(o);
+    });
+    // companies are loaded, show form now
+    document.getElementById('ticketForm').style.display = 'block';
+});
+
+function submitTicket() {
+    let f = new FormData(document.getElementById('ticketForm'));
+    let d = {};
+    f.forEach((v,k)=>{d[k]=v});
+    
+    // Look up the company ID from the name
+    let companyName = d.companySelect;
+    let option = document.querySelector(`#companyList option[value="${companyName}"]`);
+    if (option) {
+        d.companySelect = option.getAttribute('data-id');
+    }
+    
+    fetch('/api/newTicket', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)})
+    .then(async r => {
+        let data = await r.json();
+        if (r.ok) {
+            document.getElementById('ticketForm').style.display = 'none';
+            var updates = document.getElementById("formUpdates");
+            updates.innerHTML = "<h2>Your Ticket Was Submitted</h2>" + "<details><summary>Show Details</summary>" + JSON.stringify(data) + "</details>";
+            updates.innerHTML += "<a href='/index'>Back To Service Board</a>";
+        } else {
+            alert('Something went wrong! ' + JSON.stringify(data));
+        }
+    });
+}
+</script>
+</body>
+</html>
