@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>EZ-PSA</title>
+<style>
+#quickviewDialog {
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+}
+#quickviewDialog h2 {
+    margin-top: 0;
+}
+#quickviewDialog h3 {
+    margin-bottom: 5px;
+    color: #555;
+}
+#quickviewDialog p {
+    margin-top: 5px;
+    white-space: pre-wrap;
+}
+#quickviewDialog hr {
+    margin: 15px 0;
+    border: none;
+    border-top: 1px solid #ddd;
+}
+</style>
+</head>
+<body>
+<h1>EZ-PSA</h1>
+<b>The quick, accesible UI for interacting with Connectwise Manage</b>
+<h2>All Boards</h2>
+<button onclick="loadBoards()">Refresh All Boards</button>
+<div id="boards">
+</div>
+<dialog id="quickviewDialog" style="width: 600px; max-height: 80vh; overflow-y: auto;">
+    <button onclick="closeQuickView()" style="float: right;">Close</button>
+    <div id="quickviewContent">Loading...</div>
+</dialog>
+<footer>
+<p>Your footer text here</p>
+</footer>
+<script>
+// this function passes alerts to screenreaders and accepts an alert message
+function speakMessage(message) {
+var alert = document.createElement("p");
+alert.setAttribute("role", "alert");
+var alertText = document.createTextNode(message);
+alert.appendChild(alertText);
+document.body.appendChild(alert);
+setTimeout(function() {
+alert.remove();
+}, 500);
+}
+
+// asks flask for a list of boards and loads them all
+function loadBoards() {
+    document.getElementById('boards').innerHTML = '<p>Loading boards...</p>';
+    fetch('/api/getBoards')
+    .then(r => r.json())
+    .then(boardList => {
+        let html = '';
+        boardList.forEach(board => {
+            // Skip inactive boards 
+            if (board.inactive) return;
+            let boardId = `board-${board.id}`;
+            html += `
+                <h3>${board.name}</h3>
+                <a href="/newTicket?board=${encodeURIComponent(board.name)}">Create New Ticket</a><br>
+                <button onclick="loadTickets('${board.name.replace(/'/g, "\\'")}', '${boardId}', true)">Refresh Board</button>
+                <div id="${boardId}">Loading tickets...</div>
+                <hr>
+            `;
+        });
+        // Replace all content in boards div if function is executing without requesting the whole page again
+        document.getElementById('boards').innerHTML = html;
+        // Load tickets for each board asynchronously
+        boardList.forEach(board => {
+            if (board.inactive) return;
+            let boardId = `board-${board.id}`;
+            loadTickets(board.name, boardId);
+        });
+    })
+    .catch(err => {
+        console.error('Error loading boards:', err);
+        document.getElementById('boards').innerHTML = '<p>Failed to load boards</p>';
+    });
+}
+
+// loads tickets for a given board, accepts partial argument for partial refresh
+function loadTickets(board, containerId, partial = false) {
+    let url = `/api/getTickets?board=${encodeURIComponent(board)}`;
+    if (partial) {
+        url += '&partial=true';
+    }
+    fetch(url)
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById(containerId).innerHTML = html;
+            speakMessage("Tickets for" + board + " loaded");
+        })
+        .catch(err => {
+            console.error('Error loading tickets:', err);
+            alert('Failed to load tickets');
+        });
+}
+
+// quick actions
+function closeTicket(ticketId) {
+    fetch('/api/closeTicket', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ticketId: ticketId})
+    })
+    .then(async r => {
+        let data = await r.json()
+        if (r.ok) {
+            speakMessage('Ticket closed successfully!')
+            // remove table row with ticket id
+            const row = document.querySelector(`tr[data-ticket-id='${ticketId}']`);
+            if (row) {
+                row.remove();
+            }
+        } else {
+            alert('Failed to close ticket: ' + JSON.stringify(data))
+        }
+    })
+}
+
+
+function quickView(ticketId) {
+    document.getElementById('quickviewContent').innerHTML = 'Loading...';
+    document.getElementById('quickviewDialog').showModal();
+    
+    fetch(`/api/quickview?ticketId=${ticketId}`)
+    .then(r => {
+        return r.json();
+    })
+    .then(data => {
+        console.log('Received data:', data);
+        
+        if (data.error) {
+            document.getElementById('quickviewContent').innerHTML = `<p>Error: ${data.error}</p>`;
+            return;
+        }
+        
+        let html = `<h2>${data.summary}</h2><hr>`;
+        
+        if (data.entries.length === 0) {
+            html += '<p>No notes or time entries found.</p>';
+        } else {
+            data.entries.forEach(entry => {
+                html += `<h3>${entry.createdBy} (${entry.dateCreated})</h3>`;
+                html += `<div>${entry.text}</div><hr>`;  // Changed from <p> to <div> to support block elements
+            });
+        }
+        
+        document.getElementById('quickviewContent').innerHTML = html;
+    })
+    .catch(err => {
+        console.error('Error loading quickview:', err);
+        document.getElementById('quickviewContent').innerHTML = `<p>Error: ${err.message}</p>`;
+    });
+}
+
+function closeQuickView() {
+    document.getElementById('quickviewDialog').close();
+}
+
+
+// Execute on page load
+loadBoards();
+</script>
+</body>
+</html>
+
+
