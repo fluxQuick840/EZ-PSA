@@ -1,0 +1,71 @@
+<html>
+<head>
+<title>Billing Leaderboard</title>
+</head>
+<body>
+<div id="leaderboardContainer">
+    <h2>Member Billing Leaderboard</h2>
+    <label for="yearSelect">Year:</label>
+    <select id="yearSelect" onchange="loadLeaderboard()">
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+        <option value="2023">2023</option>
+    </select>
+    <button onclick="loadLeaderboard()">Refresh</button>
+    <div id="leaderboardTable">Loading...</div>
+</div>
+</body>
+</html>
+<script>
+function loadLeaderboard() {
+    let year = document.getElementById('yearSelect').value;
+    document.getElementById('leaderboardTable').innerHTML = 'Loading...';
+    
+    fetch(`/api/leaderboard?year=${year}`)
+    .then(r => r.json())
+    .then(data => {
+        let html = '<table>';
+        html += '<tr><th>Rank</th><th>Member</th><th>Hours Billed</th><th>Money Billed</th></tr>';
+        data.forEach((m, i) => {
+            html += `<tr>
+                <td>${i + 1}</td>
+                <td>${m.member}</td>
+                <td>${m.hours.toLocaleString()}</td>
+                <td>$${m.amount.toLocaleString()}</td>
+            </tr>`;
+        });
+        
+        html += '</table>';
+        document.getElementById('leaderboardTable').innerHTML = html;
+    })
+    .catch(err => {
+        console.error('Error loading leaderboard:', err);
+        document.getElementById('leaderboardTable').innerHTML = 'Failed to load leaderboard';
+    });
+}
+
+// Load on page load
+loadLeaderboard();
+</script>
+
+<style>
+#leaderboardContainer table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 10px;
+}
+#leaderboardContainer th, #leaderboardContainer td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+#leaderboardContainer th {
+    background-color: #4CAF50;
+    color: white;
+}
+#leaderboardContainer tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+</style>
+
+
